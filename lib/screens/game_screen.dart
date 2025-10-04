@@ -270,35 +270,7 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                   const SizedBox(height: 30),
                   // 分配雕紋點區塊
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () {
-                          // 分配雕紋點邏輯
-                        },
-                        child: const Text("分配雕紋點",style: TextStyle(fontSize: 12),),
-                      ),
-                      const SizedBox(width: 20),
-                      Wrap(
-                        spacing: 10, // 水平間距
-                        runSpacing: 10, // 垂直間距
-                        children: [
-                          for (var skill in ['技能1','技能2','技能3','技能4','技能5'])
-                            SizedBox(
-                              width: 90,  // 固定寬度
-                              height: 35, // 固定高度
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  // 點擊技能邏輯
-                                },
-                                child: Text(skill, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14)),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  )
+                  
                 ],
               ),
             ),
