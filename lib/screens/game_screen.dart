@@ -124,7 +124,7 @@ class _GameScreenState extends State<GameScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("RPG Demo", style: TextStyle(color: Colors.black)),
-        backgroundColor: const Color.fromARGB(255, 200, 190, 180), // 稍深灰米色
+        backgroundColor: const Color.fromARGB(255, 200, 190, 120), // 稍深灰米色
         elevation: 2,
       ),
       backgroundColor: const Color.fromARGB(255, 230, 224, 224), // 暗灰色背景
@@ -152,9 +152,9 @@ class _GameScreenState extends State<GameScreen> {
                     spacing: 16,
                     runSpacing: 8,
                     children: [
-                      Text("血量: ${widget.player.hp} / ${widget.player.maxhp}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("等級: ${widget.player.lv}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("經驗值: ${widget.player.exp}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text("血量: ${widget.player.hp} / ${widget.player.maxhp}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("等級: ${widget.player.lv}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("經驗值: ${widget.player.exp}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       Text(
                         "力量: ${widget.player.str} (${widget.player.getEffective('str') - widget.player.str >= 0 ? '+' : ''}${widget.player.getEffective('str') - widget.player.str})",
                         style: TextStyle(
@@ -163,7 +163,7 @@ class _GameScreenState extends State<GameScreen> {
                               : widget.player.getEffective('str') - widget.player.str < 0
                                   ? Colors.green
                                   : const Color.fromARGB(159, 104, 97, 1),
-                          fontSize: 18,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -175,7 +175,7 @@ class _GameScreenState extends State<GameScreen> {
                               : widget.player.getEffective('vit') - widget.player.vit < 0
                                   ? Colors.green
                                   : const Color.fromARGB(159, 104, 97, 1),
-                          fontSize: 18,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -188,7 +188,7 @@ class _GameScreenState extends State<GameScreen> {
                               : widget.player.getEffective('intt') - widget.player.intt < 0
                                   ? Colors.green
                                   : const Color.fromARGB(159, 104, 97, 1),
-                          fontSize: 18,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -201,7 +201,7 @@ class _GameScreenState extends State<GameScreen> {
                               : widget.player.getEffective('dex') - widget.player.dex < 0
                                   ? Colors.green
                                   : const Color.fromARGB(159, 104, 97, 1),
-                          fontSize: 18,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -214,7 +214,7 @@ class _GameScreenState extends State<GameScreen> {
                               : widget.player.getEffective('cha') - widget.player.cha < 0
                                   ? Colors.green
                                   : const Color.fromARGB(159, 104, 97, 1),
-                          fontSize: 18,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -227,7 +227,7 @@ class _GameScreenState extends State<GameScreen> {
                               : widget.player.getEffective('luk') - widget.player.luk < 0
                                   ? Colors.green
                                   : const Color.fromARGB(159, 104, 97, 1),
-                          fontSize: 18,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -239,14 +239,14 @@ class _GameScreenState extends State<GameScreen> {
                   Wrap(
                     spacing: 16,
                     children: [
-                      Text("攻擊: ${widget.player.atk.toStringAsFixed(1)}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("防禦: ${widget.player.def.toStringAsFixed(1)}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("迴避率: ${widget.player.agi.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("暴擊率: ${widget.player.ct.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("速度: ${widget.player.spd.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("洞察力: ${widget.player.ins.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("特殊事件: ${widget.player.SupportEvent.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("SAN值: ${widget.player.SAN.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text("攻擊: ${widget.player.atk.toStringAsFixed(1)}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("防禦: ${widget.player.def.toStringAsFixed(1)}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("迴避率: ${widget.player.agi.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("暴擊率: ${widget.player.ct.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("速度: ${widget.player.spd.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("洞察力: ${widget.player.ins.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("特殊事件: ${widget.player.SupportEvent.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text("SAN值: ${widget.player.SAN.toStringAsFixed(1)}%", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -262,7 +262,7 @@ class _GameScreenState extends State<GameScreen> {
                                 setState(() {});
                               }
                             : null,
-                        child: const Text("分配能力點",style: TextStyle(fontSize: 18),),
+                        child: const Text("分配能力點",style: TextStyle(fontSize: 12),),
                       ),
                       const SizedBox(width: 12),
                       Text("(剩餘可分配: ${widget.player.unallocatedPoints})", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -277,7 +277,7 @@ class _GameScreenState extends State<GameScreen> {
                         onPressed: () {
                           // 分配雕紋點邏輯
                         },
-                        child: const Text("分配雕紋點",style: TextStyle(fontSize: 18),),
+                        child: const Text("分配雕紋點",style: TextStyle(fontSize: 12),),
                       ),
                       const SizedBox(width: 20),
                       Wrap(
