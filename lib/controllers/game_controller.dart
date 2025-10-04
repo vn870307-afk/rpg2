@@ -6,6 +6,7 @@ import 'package:rpg/models/story_event.dart';
 import 'package:rpg/models/ziwei_player_answer.dart';
 import 'package:rpg/models/checkSanEffect.dart';
 import 'package:flutter/foundation.dart';
+import 'package:rpg/models/battle_log_entry.dart';
 
 
 // ===== Monster Model =====
@@ -65,7 +66,7 @@ class GameController extends ChangeNotifier{
   int? selectedOptionIndex;
 
   // ===== 戰鬥顯示 =====
-  List<String> battleLog = [];
+  List<BattleLogEntry> battleLog = [];
 
   // ===== 怪物相關 =====
   List<Monster> monsters = [];
@@ -89,10 +90,22 @@ class GameController extends ChangeNotifier{
   // 綁定 Player 的 log 到 battleLog
 
   player.onDeath = () {
-    addBattleLog("[PLAYER DEAD] 玩家死亡，遊戲結束");
+    addStructuredLog(LogType.system, "玩家死亡，遊戲結束");
     notifyListeners();
   };
 }
+  void addStructuredLog(LogType type, String message, {Map<String, dynamic>? data}) {
+      final entry = BattleLogEntry(type: type, message: message, data: data);
+      battleLog.add(entry);
+      // 保持日誌長度限制
+      if (battleLog.length > 20) {
+        battleLog.removeAt(0);
+      }
+      // 只有在非測試環境下才通知 UI 更新，避免性能問題
+      if (kReleaseMode || kDebugMode) {
+        notifyListeners(); 
+      }
+  }
 
   // ===== 當前事件/怪物 =====
   StoryEvent get currentEvent {
@@ -178,7 +191,6 @@ class GameController extends ChangeNotifier{
     
     // 6. Flying_Star.json
     if (indexData['Flying_Star'] != null) {
-      print("indexData['Flying_Star']: ${indexData['Flying_Star']}");
       final ziweiString = await rootBundle.loadString(
           'assets/chapters/chapter1/${indexData['Flying_Star']}');
       final ziweiData = json.decode(ziweiString);
@@ -210,7 +222,7 @@ class GameController extends ChangeNotifier{
   void maybeInsertSupportEvent() {
     if (supportEvents.isEmpty) return;
     if (supportChainCount >= 3) {
-      addBattleLog("⚠️ 特殊事件已達到連續觸發上限 (3 次)，本次跳過");
+      addStructuredLog(LogType.info, "特殊事件已達到連續觸發上限 (3 次)，本次跳過");
       return; // 超過上限就不再觸發
     }
 
@@ -220,7 +232,7 @@ class GameController extends ChangeNotifier{
       inSupportEvent = true;
       supportChainCount++; // 計數 +1
       if (nextSupportEvent!.text != null && nextSupportEvent!.text!.isNotEmpty) {
-      addBattleLog("[特殊事件] ${nextSupportEvent!.text!}");
+      addStructuredLog(LogType.story, "特殊事件觸發: ${nextSupportEvent!.text!}");
     }
     }
   }
@@ -232,22 +244,10 @@ class GameController extends ChangeNotifier{
 
     if (event == null) return false;
 
-    print("=== [DEBUG] AnswerEvent Start ===");
-    print("Event ID: ${event.id}");
-    print("Event Type: ${event.type}");
-    print("QuestionType: ${event.questionType}");
-    print("UserAnswer Type: ${userAnswer.runtimeType}");
-    print("UserAnswer: $userAnswer");
-    print("Event.options: ${event.options}");
-    print("Event.answer: ${event.answer}");
-    print("Event.answerKeys: ${event.answerKeys}");
-    print("Event.template: ${event.template}");
-
     // 🔹 SAN 影響
     final sanResult = sanChecker.checkSanEffect(player);
     if (sanResult != null) {
-      addBattleLog("⚠️ 精神影響: ${sanResult.text}");
-      print("[SAN] 發生精神影響: ${sanResult.text}");
+      addStructuredLog(LogType.penalty, "精神影響: ${sanResult.text}");
 
       if (sanResult.tempDebuff != null) {
         Map<String, int> temp = {};
@@ -255,10 +255,8 @@ class GameController extends ChangeNotifier{
           if (k == "hp") {
             player.hp += v;
             if (player.hp < 0) player.hp = 0;
-            print("[SAN] HP 變動: $v -> 當前 HP: ${player.hp}");
           } else {
             temp[k] = v;
-            print("[SAN] 屬性 Debuff: $k $v");
           }
         });
         if (temp.isNotEmpty) {
@@ -273,9 +271,6 @@ class GameController extends ChangeNotifier{
         if (userAnswer is ZiWeiPlayerAnswer) {
           final answers = userAnswer.filledValues;
           final keys = event.answerKeys ?? [];
-          print("[FILLIN] 玩家填空答案: $answers");
-          print("[FILLIN] 正確答案: $keys");
-          print("[FILLIN] 模板 blanks 數: ${event.template?.split('___').length ?? 0 - 1}");
 
           if (answers.length != keys.length) {
             correct = false;
@@ -288,24 +283,24 @@ class GameController extends ChangeNotifier{
               } 
             }
           }
-          if(correct == false) {
-            addBattleLog("❌ 錯誤！");
-          } else {
-            addBattleLog("✅ 正確！");
-          }
           String displayTemplate = event.template ?? "";
           for (int i = 0; i < keys.length; i++) {
             displayTemplate = displayTemplate.replaceFirst('___', '[${keys[i]}]');
           }
-          addBattleLog("正確答案： $displayTemplate");
-          addBattleLog("玩家答案： $answers");
+          if(correct == false) {
+            addStructuredLog(LogType.incorrectAnswer, "錯誤！");
+            addStructuredLog(LogType.correctAnswer, "正確答案： $displayTemplate");
+            addStructuredLog(LogType.incorrectAnswer, "玩家答案： $answers");
+          } else {
+            addStructuredLog(LogType.correctAnswer, "正確！");
+            addStructuredLog(LogType.correctAnswer, "正確答案： $displayTemplate");
+          }
         }
         break;
 
       case 'multiple_choice':
         if (userAnswer is int) {
           if (event.options == null || event.options!.isEmpty || userAnswer >= event.options!.length) {
-            print("[MC] 選項索引超出範圍或 options 為空");
             correct = false;
           } else {
             final selectedOption = event.options![userAnswer];
@@ -314,50 +309,36 @@ class GameController extends ChangeNotifier{
 
             // ✅/❌ battlelog 根據 correct 判斷
             if (correct) {
-              addBattleLog("✅ 正確！");
-              addBattleLog("正確答案：$answerStr");
+              addStructuredLog(LogType.correctAnswer, "正確！");
+              addStructuredLog(LogType.correctAnswer, "正確答案：$answerStr");
             } else {
-              addBattleLog("❌ 錯誤！");
-              addBattleLog("正確答案：$answerStr");
-              addBattleLog("玩家答案：$selectedOption");
+              addStructuredLog(LogType.incorrectAnswer, "錯誤！");
+              addStructuredLog(LogType.correctAnswer, "正確答案：$answerStr");
+              addStructuredLog(LogType.incorrectAnswer, "玩家答案：$selectedOption");
             }
           }
         } else {
-          print("[MC] userAnswer 不是 int，型別: ${userAnswer.runtimeType}");
-          addBattleLog("❌ 玩家答案型別錯誤！");
+          addStructuredLog(LogType.system, "玩家答案型別錯誤！");
         }
         break;
     }
 
     // ===== 怪物事件邏輯 =====
     if (monster != null) {
-      print("[Monster] 當前怪物: ${monster.name}, HP=${monster.hp}, TurnCounter=${monster.turnCounter}");
       if (correct) {
-        print("[Monster] 玩家答對 → 進行攻擊");
         playerAttack();
       } else {
         monster.turnCounter--;
-        addBattleLog("答錯了！${monster.name} 的回合倒數 -1，剩餘回合: ${monster.turnCounter}");
-        print("[Monster] 玩家答錯 → turnCounter 減少，剩餘 ${monster.turnCounter}");
+        addStructuredLog(LogType.info, "答錯了！${monster.name} 的回合倒數 -1，剩餘回合: ${monster.turnCounter}");
 
         if (monster.turnCounter <= 0) {
-          print("[Monster] turnCounter=0 → 怪物攻擊！");
           monsterAttack();
           monster.turnCounter = monster.turns;
-          print("[Monster] 回合數重置為 ${monster.turns}");
         }
       }
     }
-
-    print("=== [DEBUG] AnswerEvent End ===\n");
     return correct;
   }
-
-
-
-
-
-
 
   // ===== 玩家攻擊怪物 =====
   void playerAttack() {
@@ -375,15 +356,18 @@ class GameController extends ChangeNotifier{
     // ===== 速度額外出手判定 =====
     double speedChance = pow(player.spd / 100, 2).toDouble(); 
     if (Random().nextDouble() < speedChance) {
-      addBattleLog("你行動迅捷，壓制敵人行動，怪物回合+1！");
+      addStructuredLog(LogType.info, "你行動迅捷，壓制敵人行動，怪物回合+1！");
       monster.turnCounter += 1; // 怪物回合數補回去
     }
     monster.takeDamage(damage);
      // 戰鬥日誌
-    addBattleLog("你 對 ${monster.name} 造成 $damage 傷害 剩餘HP=${monster.hp}" + (isCrit ? " 💥 暴擊!" : ""));
+    addStructuredLog(
+      LogType.playerAttack,
+      "你 對 ${monster.name} 造成 $damage 傷害 剩餘HP=${monster.hp}" + (isCrit ? " 💥 暴擊!" : ""),
+      data: {"damage": damage, "crit": isCrit});
 
     if (monster.isDead) {
-      addBattleLog("${monster.name} 被擊敗！");
+      addStructuredLog(LogType.system, "${monster.name} 被擊敗！");
       player.tempDebuff.clear();
       player.debuffDuration.clear();
       applyMonsterReward(monster.reward);
@@ -413,14 +397,18 @@ class GameController extends ChangeNotifier{
     double evasionChance = player.agi.toDouble(); // 玩家迴避率
     if (Random().nextDouble() * 100 < evasionChance) {
       // 攻擊被迴避
-      addBattleLog("${currentMonster!.name} 的攻擊被你迴避了！");
+      addStructuredLog(LogType.info, "${currentMonster!.name} 的攻擊被你迴避了！");
       return;
     }
     int damage = currentMonster!.atk;
     int damageTaken = (damage * (100 / (100 + player.def))).round(); // 百分比減傷
     applyReward({"hp": -damageTaken}, isPenalty: true);
     if (player.hp < 0) player.hp = 0;
-    addBattleLog("${currentMonster!.name} 對 你 造成 $damageTaken 傷害 剩餘HP=${player.hp}");
+    addStructuredLog(
+      LogType.damageTaken, // 【修改】使用 damageTaken 類型
+      "${currentMonster!.name} 對 你 造成 $damageTaken 傷害 剩餘HP=${player.hp}",
+      data: {"damage": damageTaken}
+    );
   }
   void applyReward(Map<String, dynamic>? reward, {bool isPenalty = false}) {
     if (reward == null || reward.isEmpty) return;
@@ -432,15 +420,15 @@ class GameController extends ChangeNotifier{
     if (isPenalty) {
       // 只有特殊事件才顯示損失訊息
       if (inSupportEvent) {
-        addBattleLog("損失: $reward"); 
+        addStructuredLog(LogType.penalty, "特殊事件損失: $reward");
       }
     } else {
-      addBattleLog("獲得: $reward");
+      addStructuredLog(LogType.reward, "獲得: $reward", data: reward);
     }
 
     // 升級訊息
     if (!isPenalty && player.lv > oldLv) {
-      addBattleLog("🎉 升級！等級: ${player.lv}");
+      addStructuredLog(LogType.reward, "🎉 升級！等級: ${player.lv}", data: {"levelUp": true});
     }
 
   }
@@ -470,7 +458,7 @@ class GameController extends ChangeNotifier{
     // ✅ 紀錄玩家的選項文字
     if (event.options != null && index < event.options!.length) {
       final chosenText = event.options![index];
-      addBattleLog("👉 你選擇了：$chosenText");
+      addStructuredLog(LogType.info, "你選擇了：$chosenText");
     }
 
     // 套用選項對應的 reward
@@ -508,8 +496,7 @@ class GameController extends ChangeNotifier{
     
     // 隨機抽一題
     final randomEvent = questions[Random().nextInt(questions.length)];
-    print("抽到題目: ${randomEvent.question}, 類型: ${randomEvent.type}");
-    addBattleLog("題目： ${randomEvent.question}");
+    addStructuredLog(LogType.reward, "題目： ${randomEvent.question}", data: {"isQuestion": true});
 
     // 將題目掛到當前事件
     currentEvent.question = randomEvent.question;
@@ -542,33 +529,74 @@ class GameController extends ChangeNotifier{
           // 隨機刪掉其中一個
           String removed = wrongOptions[Random().nextInt(wrongOptions.length)];
           opts.remove(removed);
-          addBattleLog("💡 洞察力 觸發提示，移除了選項: $removed");
+          addStructuredLog(LogType.info, "洞察力 觸發提示：刪除了選項 '$removed'");
         }
       }
 
       currentEvent.options = opts;
     } else {
             double chance = player.ins / 100.0;
-            if (Random().nextDouble() < chance) {
-              // 隨機挑一個格子做提示
-              List<int> availableIndices = List.generate(
-                  currentEvent.answerKeys!.length, (i) => i); // 所有 index
-              int pick = availableIndices[Random().nextInt(availableIndices.length)];
-              fillinHint = currentEvent.answerKeys![pick]; // 提示該格答案
-              addBattleLog("💡 INS 提示：其中一格答案是 '${fillinHint}'");
-            }
+           if (Random().nextDouble() < chance) {
+              // 假設 currentEvent (StoryEvent) 和 fillinHint 可以在此作用域直接存取
+              
+              // 檢查是否有答案可以提示
+              if (currentEvent.answerKeys != null && currentEvent.answerKeys!.isNotEmpty) {
+                  // 獲取所有可用的答案索引
+                  List<int> availableIndices = List.generate(
+                      currentEvent.answerKeys!.length, (i) => i);
+                  
+                  final int totalBlanks = availableIndices.length;
+                  int allowedMaxHints;
+
+                  // 1. 根據答案總數決定【實際允許的最大提示數】
+                  if (totalBlanks <= 2) {
+                      // 答案總數為 1 或 2 時，最多只提示 1 個 (防止直接送答案)
+                      allowedMaxHints = 1;
+                  } else {
+                      // 答案總數為 3 個以上時，最多提示 2 個
+                      allowedMaxHints = 2; 
+                  }
+                  
+                  // 2. 確定最終要提示的數量 (取允許最大值和實際答案總數的最小值)
+                  int hintsToPick = min(allowedMaxHints, totalBlanks); 
+
+                  if (hintsToPick > 0) {
+                      List<String> hints = [];
+
+                      // 隨機挑選 hintsToPick 個不重複的答案
+                      for (int i = 0; i < hintsToPick; i++) {
+                          // 隨機選一個索引在 availableIndices 裡面
+                          int pickIndex = Random().nextInt(availableIndices.length);
+                          // 得到該答案在 currentEvent.answerKeys! 中的實際索引
+                          int answerIndex = availableIndices[pickIndex];
+                          
+                          // 取得提示答案
+                          String hint = currentEvent.answerKeys![answerIndex];
+                          hints.add(hint);
+                          
+                          // 移除已選擇的索引，確保下次不會重複選到
+                          availableIndices.removeAt(pickIndex);
+                      }
+
+                      String hintMessage;
+                      if (hints.length == 2) {
+                          hintMessage = "其中兩格答案是 '${hints[0]}' 和 '${hints[1]}'";
+                      } else {
+                          // hints.length == 1
+                          hintMessage = "其中一格答案是 '${hints.first}'";
+                      }
+
+                      // 輸出 Log 訊息
+                      addStructuredLog(LogType.info, "洞察力 觸發提示：$hintMessage");
+                      
+                      // 將第一個提示賦值給 fillinHint 供 UI 顯示用
+                      fillinHint = hints.first;
+                  }
+              }
+          }
             currentEvent.answerKeys = randomEvent.answerKeys;
           }
   }
-  void addBattleLog(String message) {
-    battleLog.add(message);
-    if (battleLog.length > 20) {
-      battleLog.removeAt(0);
-    }
-    notifyListeners(); // 通知 UI 更新
-  }
-
-
 
   // ===== 下一個事件 =====
     void nextEvent({int optionIndex = 0}) {
@@ -587,7 +615,7 @@ class GameController extends ChangeNotifier{
         final current = currentEvent;
         final next = currentEvent;
         if (next.text != null && next.text!.isNotEmpty) {
-                addBattleLog(next.text!);
+                addStructuredLog(LogType.story, next.text!);
             }
         if (current.type == "monster" && currentMonster != null && !currentMonster!.isDead) {    
           currentMonster!.turnCounter = currentMonster!.turns;
@@ -615,7 +643,7 @@ class GameController extends ChangeNotifier{
           currentEventIndex = eventIdToIndex[nextId]!;
           final next = currentEvent;
           if (next.text != null && next.text!.isNotEmpty) {
-            addBattleLog(next.text!);
+            addStructuredLog(LogType.story, next.text!);
           }
 
           // 怪物事件初始化，若怪物已死就跳過
@@ -629,7 +657,7 @@ class GameController extends ChangeNotifier{
       } else if (currentEventIndex < events.length - 1) {
         currentEventIndex++;
       } else {
-        addBattleLog("無下一事件或章節結束");
+        addStructuredLog(LogType.system, "無下一事件或章節結束");
       }
     }
 }

@@ -81,6 +81,7 @@ class _AttributeAllocationScreenState extends State<AttributeAllocationScreen> {
         title: Text("分配能力點 (剩餘: $remainingPoints)"),
         backgroundColor: const Color.fromARGB(255, 200, 190, 180),
         elevation: 2,
+        toolbarHeight: 30.0,
       ),
       backgroundColor: const Color.fromARGB(255, 230, 224, 224),
       body: Padding(

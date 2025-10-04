@@ -101,6 +101,7 @@ class _AttributeRollScreenState extends State<AttributeRollScreen>
         title: const Text("擲骰分配基礎能力值", style: TextStyle(color: Colors.black)),
         backgroundColor: const Color.fromARGB(255, 200, 190, 180), // 稍深灰米色
         elevation: 2,
+        toolbarHeight: 30.0,
       ),
       backgroundColor: const Color.fromARGB(255, 230, 224, 224),
       body: Stack(

@@ -69,6 +69,16 @@ class Player {
       (getEffective("intt") * 0.2).round() +
       (getEffective("str") * 0.2).round();
 
+  // 【✨ 新增：未被 Debuff 影響的戰鬥能力值】
+  num getUnmodifiedAtk() => 40 + str * 2 + intt * 1.5;
+  num getUnmodifiedDef() => vit * 1.5;
+  num getUnmodifiedAgi() => 10 + cha * 1.2 + luk * 1.2;
+  num getUnmodifiedCt() => 10 + luk * 2 + dex * 1.5;
+  num getUnmodifiedSpd() => 10 + dex * 1.5;
+  num getUnmodifiedIns() => 30 + intt * 2;
+  num getUnmodifiedSupportEvent() => 20 + cha * 2;
+  // ----------------------------------------------------
+
   // ===== 隨機初始分配 =====
   void rollDiceForStats() {
     int remainingPoints = totalPoints;
@@ -157,7 +167,6 @@ class Player {
   }) {
     int total = strPoints + vitPoints + inttPoints + dexPoints + chaPoints + lukPoints;
     if (total > unallocatedPoints) {
-      print("❌ 分配點數超過可用點數！剩餘點數：$unallocatedPoints");
       return;
     }
 
@@ -169,6 +178,5 @@ class Player {
     luk += lukPoints;
 
     unallocatedPoints -= total;
-    print("✅ 已分配點數，剩餘可分配點數：$unallocatedPoints");
   }
 }
