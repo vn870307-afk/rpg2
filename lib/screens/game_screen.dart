@@ -337,7 +337,7 @@ class _GameScreenState extends State<GameScreen> {
                             widget.game.battleLog[index],
                             style: TextStyle(
                               color: getLogColor(widget.game.battleLog[index]),
-                              fontSize: 14,
+                              fontSize: 12,
                               fontFamily: 'monospace',
                             ),
                           ),
@@ -366,7 +366,7 @@ class _GameScreenState extends State<GameScreen> {
                       if (event.type == "story") ...[
                         Text(event.text ?? "",
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 20),
                         if (event.options != null && event.options!.isNotEmpty)
                           ...List.generate(event.options!.length, (i) {
@@ -374,14 +374,14 @@ class _GameScreenState extends State<GameScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: ElevatedButton(
                                 onPressed: () => setState(() => widget.game.selectStoryOption(i)),
-                                child: Text(event.options![i],style: const TextStyle(fontSize: 20),),
+                                child: Text(event.options![i],style: const TextStyle(fontSize: 12),),
                               ),
                             );
                           })
                         else
                           ElevatedButton(
                             onPressed: () => setState(() => widget.game.nextEvent()),
-                            child: const Text("繼續",style: TextStyle(fontSize: 20),),
+                            child: const Text("繼續",style: TextStyle(fontSize: 12),),
                           ),
                       ]
 
@@ -389,16 +389,16 @@ class _GameScreenState extends State<GameScreen> {
                       else if (event.type == "monster" && monster != null) ...[
                         Text("遇到怪物: ${monster.name}",
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                        Text("怪物 HP: ${monster.hp}", style: const TextStyle(fontSize: 20)),
-                        Text("ATK: ${monster.atk}", style: const TextStyle(fontSize: 20)),
-                        Text("回合: ${monster.turnCounter}", style: const TextStyle(fontSize: 20)),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text("怪物 HP: ${monster.hp}", style: const TextStyle(fontSize: 12)),
+                        Text("ATK: ${monster.atk}", style: const TextStyle(fontSize: 12)),
+                        Text("回合: ${monster.turnCounter}", style: const TextStyle(fontSize: 12)),
                         const SizedBox(height: 20),
 
                         if (event.question != null) ...[
                           Text(event.question!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 16),
                           if (event.answerKeys != null && event.answerKeys!.isNotEmpty) 
                             // 多欄填空題
@@ -434,7 +434,7 @@ class _GameScreenState extends State<GameScreen> {
                                       }
                                     });
                                   },
-                                  child: Text(event.options![i], style: const TextStyle(fontSize: 20)),
+                                  child: Text(event.options![i], style: const TextStyle(fontSize: 12)),
                                 ),
                               );
                             })
