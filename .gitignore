@@ -30,7 +30,11 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+# 排除整個 build 資料夾
 /build/
+
+# !例外規則：允許追蹤 build/web/
+!/build/web/
 /coverage/
 
 # Symbolication related
