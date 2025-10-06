@@ -34,7 +34,7 @@ class Player {
     this.dex = 0,
     this.cha = 0,
     this.luk = 0,
-    this.sanBase = 90,
+    this.sanBase = 80,
   }) {
     rollDiceForStats();
   }

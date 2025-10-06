@@ -1,3 +1,6 @@
+// lib/controllers/game_controller.dart
+
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/services.dart';
@@ -5,17 +8,16 @@ import 'package:rpg/models/player.dart';
 import 'package:rpg/models/story_event.dart';
 import 'package:rpg/models/ziwei_player_answer.dart';
 import 'package:rpg/models/checkSanEffect.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart'; // 引入 compute 函式
 import 'package:rpg/models/battle_log_entry.dart';
 
-
-// ===== Monster Model =====
+// ===== Monster Model (保持不變) =====
 class Monster {
   final String id;
   final String name;
   int hp;
-  final int turns; // 怪物的攻擊間隔
-  int turnCounter = 0; // 怪物當前計數器
+  final int turns; 
+  int turnCounter = 0; 
   final List<int> atkRange;
   final bool isBoss;
   final Map<String, dynamic>? reward;
@@ -55,6 +57,38 @@ class Monster {
   }
 }
 
+
+// ✨ 【頂層函式：用於在 Isolate 中解析 StoryEvent 列表】
+List<StoryEvent> _parseStoryEvents(String jsonString) {
+  final jsonMap = json.decode(jsonString);
+
+  if (jsonMap is List) {
+    return jsonMap.map((e) => StoryEvent.fromJson(e)).toList();
+  } else if (jsonMap is Map && jsonMap['events'] != null) {
+    return (jsonMap['events'] as List)
+        .map((e) => StoryEvent.fromJson(e))
+        .toList();
+  } else if (jsonMap is Map && jsonMap['supportEvents'] != null) {
+    return (jsonMap['supportEvents'] as List)
+        .map((e) => StoryEvent.fromJson(e))
+        .toList();
+  }
+  return [];
+}
+
+// ✨ 【頂層函式：用於在 Isolate 中解析 Monster 列表】
+List<Monster> _parseMonsters(String jsonString) {
+  final jsonMap = json.decode(jsonString);
+
+  if (jsonMap is Map && jsonMap['monsters'] != null) {
+    return (jsonMap['monsters'] as List<dynamic>)
+        .map((m) => Monster.fromJson(m))
+        .toList();
+  }
+  return [];
+}
+
+
 class GameController extends ChangeNotifier{
   Player player;
   late SanEffectChecker sanChecker;
@@ -80,131 +114,98 @@ class GameController extends ChangeNotifier{
   bool waitingForMonsterAttack = false;
 
   // ===== 題目列表 =====
-  List<StoryEvent> questions = []; // 存題目 JSON
+  List<StoryEvent> questions = []; 
+  
   GameController({required this.player}) {
     sanChecker = SanEffectChecker(sanEffects: [
     SanEffect(severity: "light", text: "你感到輕微的焦慮，智力-1,HP-5。", tempDebuff: {"intt": 1,"hp": -5}),
     SanEffect(severity: "medium", text: "你感到精神混亂，力量-2,敏捷-1,HP-10 。", tempDebuff: {"str": 2, "dex": 1,"hp": -10}),
     SanEffect(severity: "heavy", text: "你陷入極度恐慌，堅毅-3,魅力-2,HP-15。", tempDebuff: {"vit": 3, "cha": -2,"hp": -15}),
   ]);
-  // 綁定 Player 的 log 到 battleLog
 
+  // 綁定 Player 的 log 到 battleLog
   player.onDeath = () {
     addStructuredLog(LogType.system, "玩家死亡，遊戲結束");
     notifyListeners();
   };
 }
+
+  // 【優化點 1: 移除 notifyListeners()，讓調用者決定何時更新】
   void addStructuredLog(LogType type, String message, {Map<String, dynamic>? data}) {
       final entry = BattleLogEntry(type: type, message: message, data: data);
       battleLog.add(entry);
-      // 保持日誌長度限制
       if (battleLog.length > 20) {
         battleLog.removeAt(0);
       }
-      // 只有在非測試環境下才通知 UI 更新，避免性能問題
-      if (kReleaseMode || kDebugMode) {
-        notifyListeners(); 
-      }
   }
 
-  // ===== 當前事件/怪物 =====
+  // ===== 當前事件/怪物 (保持不變) =====
   StoryEvent get currentEvent {
-    // 如果正在支援事件，就回傳支援事件
     if (inSupportEvent && nextSupportEvent != null) {
       return nextSupportEvent!;
     }
-    // 否則回傳正常事件
     return events[currentEventIndex];
   }
 
   Monster? get currentMonster {
-    // 只有怪物事件才有怪物
     if (currentEvent.type != "monster") return null;
 
-    // 找對應怪物 ID
     return monsters.firstWhere(
       (m) => m.id == currentEvent.monsterId,
       orElse: () => throw Exception("找不到怪物 ID: ${currentEvent.monsterId}"),
     );
   }
 
-  // ===== 載入章節 =====
+  // ===== 載入章節 (使用 Isolate 優化) =====
   Future<void> loadChapter(String indexPath) async {
     // 1. 讀 index.json
     final indexString = await rootBundle.loadString(indexPath);
     final indexData = json.decode(indexString);
 
-    // 2. route.json
+    // 2. route.json (使用 Isolate)
     if (indexData['routes'] != null) {
-      final routeString = await rootBundle.loadString(
-          'assets/chapters/chapter1/${indexData['routes']}');
-      final routeData = json.decode(routeString);
+      final routePath = 'assets/chapters/chapter1/${indexData['routes']}';
+      final routeString = await rootBundle.loadString(routePath);
+      final routeData = await compute(json.decode, routeString); // 📦 Isolate 解碼
 
       // route events
       final routeEventsList = (routeData['events'] as List<dynamic>?)
               ?.map((e) => StoryEvent.fromJson(e))
-              .toList() ??
-          [];
-      events.addAll(routeEventsList); // 加到總事件列表
+              .toList() ?? [];
+      events.addAll(routeEventsList); 
 
       // monsters
-      monsters = (routeData['monsters'] as List<dynamic>?)
-              ?.map((m) => Monster.fromJson(m))
-              .toList() ??
-          [];
+      if (routeData['monsters'] is List) {
+        final monstersData = json.encode({'monsters': routeData['monsters']}); // 重新打包成 Map
+        monsters = await compute(_parseMonsters, monstersData); // 📦 Isolate 解碼
+      }
     }
 
-    // 3.----- multiple_choice.json -----
+    // 3. multiple_choice.json (使用 Isolate)
     if (indexData['multipleChoice'] != null) {
-      final mcString = await rootBundle.loadString(
-          'assets/chapters/chapter1/${indexData['multipleChoice']}');
-      final mcData = json.decode(mcString);
-
-      List<StoryEvent> mcEvents = [];
-
-      if (mcData is List) {
-        // JSON 直接是 array
-        mcEvents = mcData.map((e) => StoryEvent.fromJson(e)).toList();
-      } else if (mcData is Map && mcData['events'] != null) {
-        // JSON 有 events key
-        mcEvents = (mcData['events'] as List)
-            .map((e) => StoryEvent.fromJson(e))
-            .toList();
-      } 
+      final mcPath = 'assets/chapters/chapter1/${indexData['multipleChoice']}';
+      final mcString = await rootBundle.loadString(mcPath);
+      List<StoryEvent> mcEvents = await compute(_parseStoryEvents, mcString); // 📦 Isolate 解碼
       events.addAll(mcEvents);
       questions.addAll(mcEvents);
     }
 
 
-    // 4.input_question.json 是 array
-
-    // 5.----- support_event.json -----
+    // 5. support_event.json (使用 Isolate)
     if (indexData['supportEvents'] != null) {
-      final supportString = await rootBundle.loadString(
-          'assets/chapters/chapter1/${indexData['supportEvents']}');
-      final supportData = json.decode(supportString);
-      supportEvents = (supportData['supportEvents'] as List<dynamic>?)
-              ?.map((e) => StoryEvent.fromJson(e))
-              .toList() ??
-          [];
+      final supportPath = 'assets/chapters/chapter1/${indexData['supportEvents']}';
+      final supportString = await rootBundle.loadString(supportPath);
+      supportEvents = await compute(_parseStoryEvents, supportString); // 📦 Isolate 解碼
     }
     
-    // 6. Flying_Star.json
+    // 6. Flying_Star.json (使用 Isolate)
     if (indexData['Flying_Star'] != null) {
-      final ziweiString = await rootBundle.loadString(
-          'assets/chapters/chapter1/${indexData['Flying_Star']}');
-      final ziweiData = json.decode(ziweiString);
+      final ziweiPath = 'assets/chapters/chapter1/${indexData['Flying_Star']}';
+      final ziweiString = await rootBundle.loadString(ziweiPath);
+      final ziweiEvents = await compute(_parseStoryEvents, ziweiString); // 📦 Isolate 解碼
 
-      if (ziweiData is List) {
-        // 在這裡加上 debug print
-        final ziweiEvents = ziweiData.map((e) {
-          final evt = StoryEvent.fromJson(e);
-          return evt;
-        }).toList();
-
-        events.addAll(ziweiEvents);
-        questions.addAll(ziweiEvents);
-      }
+      events.addAll(ziweiEvents);
+      questions.addAll(ziweiEvents);
     }
 
     // 7. 初始化
@@ -213,36 +214,42 @@ class GameController extends ChangeNotifier{
     eventIdToIndex = {};
     for (int i = 0; i < events.length; i++) {
       eventIdToIndex[events[i].id] = i;
-  }
+    }
+
+    notifyListeners(); // 載入完成，通知 UI 更新
   }
 
-  // ===== 隨機插入支援事件 =====
+  // ===== 隨機插入支援事件 (保持不變) =====
   StoryEvent? nextSupportEvent; 
 
   void maybeInsertSupportEvent() {
     if (supportEvents.isEmpty) return;
     if (supportChainCount >= 3) {
       addStructuredLog(LogType.info, "特殊事件已達到連續觸發上限 (3 次)，本次跳過");
-      return; // 超過上限就不再觸發
+      return; 
     }
 
     double chance = player.SupportEvent / 100;
     if (Random().nextDouble() < chance) {
       nextSupportEvent = supportEvents[Random().nextInt(supportEvents.length)];
       inSupportEvent = true;
-      supportChainCount++; // 計數 +1
+      supportChainCount++; 
       if (nextSupportEvent!.text != null && nextSupportEvent!.text!.isNotEmpty) {
-      addStructuredLog(LogType.story, "特殊事件觸發: ${nextSupportEvent!.text!}");
-    }
+        addStructuredLog(LogType.story, "特殊事件觸發: ${nextSupportEvent!.text!}");
+      }
     }
   }
 
+  // 【優化點 2: 統一狀態更新 - 戰鬥與回答的核心邏輯】
   bool answerEvent(dynamic userAnswer) {
     final event = currentEvent;
     final monster = currentMonster;
     bool correct = false;
 
-    if (event == null) return false;
+    if (event == null) {
+      notifyListeners(); 
+      return false;
+    }
 
     // 🔹 SAN 影響
     final sanResult = sanChecker.checkSanEffect(player);
@@ -265,7 +272,7 @@ class GameController extends ChangeNotifier{
       }
     }
 
-    // ===== 判斷答案 =====
+    // ===== 判斷答案 (保持不變) =====
     switch (event.questionType) {
       case 'fillin':
         if (userAnswer is ZiWeiPlayerAnswer) {
@@ -307,7 +314,6 @@ class GameController extends ChangeNotifier{
             final answerStr = event.answer?.toString().trim() ?? "";
             correct = selectedOption.trim() == answerStr;
 
-            // ✅/❌ battlelog 根據 correct 判斷
             if (correct) {
               addStructuredLog(LogType.correctAnswer, "正確！");
               addStructuredLog(LogType.correctAnswer, "正確答案：$answerStr");
@@ -337,27 +343,29 @@ class GameController extends ChangeNotifier{
         }
       }
     }
+
+    notifyListeners(); // ✨ 統一在邏輯結束後通知 UI 更新一次
     return correct;
   }
 
-  // ===== 玩家攻擊怪物 =====
+  // ===== 玩家攻擊怪物 (移除 notifyListeners) =====
   void playerAttack() {
     final monster = currentMonster;
     if (!playerTurn || monster == null) return;
     int damage = player.atk.toInt();
     bool isCrit = false;
      // 暴擊判定
-    double critRate = player.ct.toDouble(); // 使用 ct 屬性
-    double critMultiplier = 1.5; // 暴擊傷害倍率，可自由調整
+    double critRate = player.ct.toDouble(); 
+    double critMultiplier = 1.5; 
     if (Random().nextDouble() < critRate / 100) {
       damage = (damage * critMultiplier).toInt();
       isCrit = true;
     }
-    // ===== 速度額外出手判定 =====
+    // 速度額外出手判定
     double speedChance = pow(player.spd / 100, 2).toDouble(); 
     if (Random().nextDouble() < speedChance) {
       addStructuredLog(LogType.info, "你行動迅捷，壓制敵人行動，怪物回合+1！");
-      monster.turnCounter += 1; // 怪物回合數補回去
+      monster.turnCounter += 1; 
     }
     monster.takeDamage(damage);
      // 戰鬥日誌
@@ -371,54 +379,53 @@ class GameController extends ChangeNotifier{
       player.tempDebuff.clear();
       player.debuffDuration.clear();
       applyMonsterReward(monster.reward);
-      // 清空玩家選擇，防止舊選項影響下一事件
       selectedOptionIndex = null;
       maybeInsertSupportEvent();
       if (nextSupportEvent == null) {
-        // 沒有支援事件就直接進下一事件
         nextEvent(optionIndex: 0);
-      } else {
-        // 支援事件觸發，currentEventIndex 先不動，等 UI 處理完再跳
-      }
+      } 
     } else {
       monster.turnCounter--;
       if (monster.turnCounter <= 0) {
-        monsterAttack();
-        monster.turnCounter = monster.turns; // 安全重置
+        // 【優化點 3: 異步延遲呼叫怪物攻擊】
+        // 延遲執行，讓 UI 有時間繪製玩家攻擊的 Log
+        Future.delayed(const Duration(milliseconds: 300), () { 
+          monsterAttack();
+          monster.turnCounter = monster.turns; // 安全重置
+          notifyListeners(); // 怪物攻擊後需要通知 UI 更新血量和 Log
+        });
       }
     }
   }
 
 
-  // ===== 怪物攻擊玩家 =====
+  // ===== 怪物攻擊玩家 (移除 notifyListeners) =====
   void monsterAttack() {
-    if (currentMonster == null) return; // 如果不是怪物事件就跳過
+    if (currentMonster == null) return; 
     // 迴避判定
-    double evasionChance = player.agi.toDouble(); // 玩家迴避率
+    double evasionChance = player.agi.toDouble(); 
     if (Random().nextDouble() * 100 < evasionChance) {
-      // 攻擊被迴避
       addStructuredLog(LogType.info, "${currentMonster!.name} 的攻擊被你迴避了！");
       return;
     }
     int damage = currentMonster!.atk;
-    int damageTaken = (damage * (100 / (100 + player.def))).round(); // 百分比減傷
+    int damageTaken = (damage * (100 / (100 + player.def))).round(); 
     applyReward({"hp": -damageTaken}, isPenalty: true);
     if (player.hp < 0) player.hp = 0;
     addStructuredLog(
-      LogType.damageTaken, // 【修改】使用 damageTaken 類型
+      LogType.damageTaken, 
       "${currentMonster!.name} 對 你 造成 $damageTaken 傷害 剩餘HP=${player.hp}",
       data: {"damage": damageTaken}
     );
   }
+  // ... (applyReward, applyMonsterReward 保持不變)
   void applyReward(Map<String, dynamic>? reward, {bool isPenalty = false}) {
     if (reward == null || reward.isEmpty) return;
 
     int oldLv = player.lv;
     player.applyReward(reward);
 
-    // 顯示獎勵細節
     if (isPenalty) {
-      // 只有特殊事件才顯示損失訊息
       if (inSupportEvent) {
         addStructuredLog(LogType.penalty, "特殊事件損失: $reward");
       }
@@ -426,11 +433,9 @@ class GameController extends ChangeNotifier{
       addStructuredLog(LogType.reward, "獲得: $reward", data: reward);
     }
 
-    // 升級訊息
     if (!isPenalty && player.lv > oldLv) {
       addStructuredLog(LogType.reward, "🎉 升級！等級: ${player.lv}", data: {"levelUp": true});
     }
-
   }
 
 
@@ -449,13 +454,13 @@ class GameController extends ChangeNotifier{
 
     applyReward(gain, isPenalty: false);
   }
-  // ===== 選擇 story 選項 =====
+  
+  // ===== 選擇 story 選項 (移除 notifyListeners) =====
   void selectStoryOption(int index) {
     final event = currentEvent;
     Random rng = Random();
-    selectedOptionIndex = index; // 記錄玩家選擇
+    selectedOptionIndex = index; 
 
-    // ✅ 紀錄玩家的選項文字
     if (event.options != null && index < event.options!.length) {
       final chosenText = event.options![index];
       addStructuredLog(LogType.info, "你選擇了：$chosenText");
@@ -488,45 +493,35 @@ class GameController extends ChangeNotifier{
     }
  
     nextEvent(optionIndex: index);
+    notifyListeners(); // ✨ 統一更新一次
   }
-  // ===== 隨機給怪物事件分配題目 =====
+  
+  // ===== 隨機給怪物事件分配題目 (保持不變) =====
   void assignRandomQuestionToMonster() {
-    String? fillinHint; // 用來顯示提示文字
+    String? fillinHint; 
     if (currentEvent.type != "monster" || questions.isEmpty) return;
     
-    // 隨機抽一題
     final randomEvent = questions[Random().nextInt(questions.length)];
     addStructuredLog(LogType.reward, "題目： ${randomEvent.question}", data: {"isQuestion": true});
 
-    // 將題目掛到當前事件
     currentEvent.question = randomEvent.question;
     currentEvent.answer = randomEvent.answer;
     currentEvent.answerKeys = randomEvent.answerKeys;
     currentEvent.template = randomEvent.template;
     currentEvent.questionType = randomEvent.type;
 
-    // 如果是 multiple_choice 題型且有 distractors
     if (randomEvent.distractors != null && randomEvent.distractors!.isNotEmpty) {
-      // 複製 distractors，隨機挑選三個
       final List<String> distractorPool = List<String>.from(randomEvent.distractors!);
       distractorPool.shuffle();
 
-      // 取前三個干擾答案
       final List<String> opts = distractorPool.take(3).toList();
-
-      // 加上正確答案
       opts.add(randomEvent.answer);
-
-      // 打亂四個選項順序
       opts.shuffle();
 
-      // ===== 新增：根據玩家的 INS 來刪掉一個錯誤選項 =====
-      double chance = player.ins / 100.0; // 假設 INS 滿分 100
+      double chance = player.ins / 100.0; 
       if (Random().nextDouble() < chance && opts.length > 2) {
-        // 找出所有錯誤選項
         List<String> wrongOptions = opts.where((o) => o != randomEvent.answer).toList();
         if (wrongOptions.isNotEmpty) {
-          // 隨機刪掉其中一個
           String removed = wrongOptions[Random().nextInt(wrongOptions.length)];
           opts.remove(removed);
           addStructuredLog(LogType.info, "洞察力 觸發提示：刪除了選項 '$removed'");
@@ -537,44 +532,32 @@ class GameController extends ChangeNotifier{
     } else {
             double chance = player.ins / 100.0;
            if (Random().nextDouble() < chance) {
-              // 假設 currentEvent (StoryEvent) 和 fillinHint 可以在此作用域直接存取
               
-              // 檢查是否有答案可以提示
               if (currentEvent.answerKeys != null && currentEvent.answerKeys!.isNotEmpty) {
-                  // 獲取所有可用的答案索引
                   List<int> availableIndices = List.generate(
                       currentEvent.answerKeys!.length, (i) => i);
                   
                   final int totalBlanks = availableIndices.length;
                   int allowedMaxHints;
 
-                  // 1. 根據答案總數決定【實際允許的最大提示數】
                   if (totalBlanks <= 2) {
-                      // 答案總數為 1 或 2 時，最多只提示 1 個 (防止直接送答案)
                       allowedMaxHints = 1;
                   } else {
-                      // 答案總數為 3 個以上時，最多提示 2 個
                       allowedMaxHints = 2; 
                   }
                   
-                  // 2. 確定最終要提示的數量 (取允許最大值和實際答案總數的最小值)
                   int hintsToPick = min(allowedMaxHints, totalBlanks); 
 
                   if (hintsToPick > 0) {
                       List<String> hints = [];
 
-                      // 隨機挑選 hintsToPick 個不重複的答案
                       for (int i = 0; i < hintsToPick; i++) {
-                          // 隨機選一個索引在 availableIndices 裡面
                           int pickIndex = Random().nextInt(availableIndices.length);
-                          // 得到該答案在 currentEvent.answerKeys! 中的實際索引
                           int answerIndex = availableIndices[pickIndex];
                           
-                          // 取得提示答案
                           String hint = currentEvent.answerKeys![answerIndex];
                           hints.add(hint);
                           
-                          // 移除已選擇的索引，確保下次不會重複選到
                           availableIndices.removeAt(pickIndex);
                       }
 
@@ -582,14 +565,11 @@ class GameController extends ChangeNotifier{
                       if (hints.length == 2) {
                           hintMessage = "其中兩格答案是 '${hints[0]}' 和 '${hints[1]}'";
                       } else {
-                          // hints.length == 1
                           hintMessage = "其中一格答案是 '${hints.first}'";
                       }
 
-                      // 輸出 Log 訊息
                       addStructuredLog(LogType.info, "洞察力 觸發提示：$hintMessage");
                       
-                      // 將第一個提示賦值給 fillinHint 供 UI 顯示用
                       fillinHint = hints.first;
                   }
               }
@@ -598,7 +578,7 @@ class GameController extends ChangeNotifier{
           }
   }
 
-  // ===== 下一個事件 =====
+  // ===== 下一個事件 (保持不變) =====
     void nextEvent({int optionIndex = 0}) {
       // 如果是支援事件，結束後直接清空支援事件，不回到前一個事件
       if (inSupportEvent) {
@@ -606,29 +586,25 @@ class GameController extends ChangeNotifier{
         nextSupportEvent = null;
         maybeInsertSupportEvent();
         if (nextSupportEvent != null) {
-      // 如果又抽到，直接停留在新的支援事件
           return;
         }
         supportChainCount = 0;
-        // 支援事件後的下一個事件就是 currentEventIndex 本身
-        // 如果是怪物事件，檢查怪物是否死亡
-        final current = currentEvent;
-        final next = currentEvent;
-        if (next.text != null && next.text!.isNotEmpty) {
-                addStructuredLog(LogType.story, next.text!);
-            }
+        final current = events[currentEventIndex]; // 支援事件結束後，回到原來的事件
+        if (current.text != null && current.text!.isNotEmpty) {
+          addStructuredLog(LogType.story, current.text!);
+        }
         if (current.type == "monster" && currentMonster != null && !currentMonster!.isDead) {    
           currentMonster!.turnCounter = currentMonster!.turns;
           playerTurn = true;
           assignRandomQuestionToMonster();
         }
+        return;
       }
 
       final current = currentEvent;
 
       // 怪物沒死，不前進事件
       if (current.type == "monster" && currentMonster != null && !currentMonster!.isDead) {
-
         return;
       }
 
