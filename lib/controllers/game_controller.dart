@@ -92,6 +92,7 @@ List<Monster> _parseMonsters(String jsonString) {
 class GameController extends ChangeNotifier{
   Player player;
   late SanEffectChecker sanChecker;
+  Set<String> usedQuestionIds = {}; // 追蹤已抽題目
   // ===== 事件相關 =====
   List<StoryEvent> events = [];
   late Map<String, int> eventIdToIndex;
@@ -226,6 +227,7 @@ class GameController extends ChangeNotifier{
     if (supportEvents.isEmpty) return;
     if (supportChainCount >= 3) {
       addStructuredLog(LogType.info, "特殊事件已達到連續觸發上限 (3 次)，本次跳過");
+      supportChainCount = 0;
       return; 
     }
 
@@ -237,6 +239,8 @@ class GameController extends ChangeNotifier{
       if (nextSupportEvent!.text != null && nextSupportEvent!.text!.isNotEmpty) {
         addStructuredLog(LogType.story, "特殊事件觸發: ${nextSupportEvent!.text!}");
       }
+    } else {
+        supportChainCount = 0; // ✨ 機率失敗，重置！
     }
   }
 
@@ -261,7 +265,10 @@ class GameController extends ChangeNotifier{
         sanResult.tempDebuff!.forEach((k, v) {
           if (k == "hp") {
             player.hp += v;
-            if (player.hp < 0) player.hp = 0;
+            if (player.hp < 0) {
+            player.hp = 0;
+            if (player.onDeath != null) player.onDeath!(); // ✅ 直接呼叫死亡事件
+            }
           } else {
             temp[k] = v;
           }
@@ -279,31 +286,45 @@ class GameController extends ChangeNotifier{
           final answers = userAnswer.filledValues;
           final keys = event.answerKeys ?? [];
 
-          if (answers.length != keys.length) {
-            correct = false;
-          } else {
-            correct = true;
+          double accuracy = 0.0; // 答對比例
+          if (answers.length == keys.length) {
+            int correctCount = 0;
             for (int i = 0; i < keys.length; i++) {
-              if (answers[i].trim() != keys[i].trim()) {
-                correct = false;
-                break;
-              } 
+              if (answers[i].trim() == keys[i].trim()) {
+                correctCount++;
+              }
             }
+            accuracy = correctCount / keys.length;
           }
+
+          correct = accuracy == 1.0; // 完全正確才算正確
+
+          // 組顯示模板
           String displayTemplate = event.template ?? "";
           for (int i = 0; i < keys.length; i++) {
             displayTemplate = displayTemplate.replaceFirst('___', '[${keys[i]}]');
           }
-          if(correct == false) {
-            addStructuredLog(LogType.incorrectAnswer, "錯誤！");
+
+          if (correct) {
+            addStructuredLog(LogType.correctAnswer, "正確答案： $displayTemplate");
+          } else {
             addStructuredLog(LogType.correctAnswer, "正確答案： $displayTemplate");
             addStructuredLog(LogType.incorrectAnswer, "玩家答案： $answers");
-          } else {
-            addStructuredLog(LogType.correctAnswer, "正確！");
-            addStructuredLog(LogType.correctAnswer, "正確答案： $displayTemplate");
+
+            // ✅ 部分答對造成比例傷害（只扣血，不觸發暴擊或速度加成）
+            if (currentMonster != null && accuracy > 0) {
+              int partialDamage = (player.atk * accuracy).toInt();
+              currentMonster!.takeDamage(partialDamage);
+              addStructuredLog(
+                LogType.playerAttack,
+                "部分答對！對 ${currentMonster!.name} 造成 $partialDamage 傷害 (答對比例: ${(accuracy*100).round()}%)",
+                data: {"damage": partialDamage}
+              );
+            }
           }
         }
         break;
+
 
       case 'multiple_choice':
         if (userAnswer is int) {
@@ -315,10 +336,8 @@ class GameController extends ChangeNotifier{
             correct = selectedOption.trim() == answerStr;
 
             if (correct) {
-              addStructuredLog(LogType.correctAnswer, "正確！");
               addStructuredLog(LogType.correctAnswer, "正確答案：$answerStr");
             } else {
-              addStructuredLog(LogType.incorrectAnswer, "錯誤！");
               addStructuredLog(LogType.correctAnswer, "正確答案：$answerStr");
               addStructuredLog(LogType.incorrectAnswer, "玩家答案：$selectedOption");
             }
@@ -379,6 +398,12 @@ class GameController extends ChangeNotifier{
       player.tempDebuff.clear();
       player.debuffDuration.clear();
       applyMonsterReward(monster.reward);
+      if (player.SAN < 60) {
+        int recover = 5 + Random().nextInt(6); // 5~10
+        player.sanBase += recover;
+        if (player.sanBase > 100) player.sanBase = 100;
+        addStructuredLog(LogType.reward, "戰鬥勝利讓你稍微冷靜下來，SAN +$recover。");
+      }
       selectedOptionIndex = null;
       maybeInsertSupportEvent();
       if (nextSupportEvent == null) {
@@ -500,8 +525,12 @@ class GameController extends ChangeNotifier{
   void assignRandomQuestionToMonster() {
     String? fillinHint; 
     if (currentEvent.type != "monster" || questions.isEmpty) return;
+    final availableQuestions = questions.where((q) => !usedQuestionIds.contains(q.id)).toList();
+    if (availableQuestions.isEmpty) return; // 全部用過就跳過
     
-    final randomEvent = questions[Random().nextInt(questions.length)];
+    final randomEvent = availableQuestions[Random().nextInt(availableQuestions.length)];
+    usedQuestionIds.add(randomEvent.id); // ✅ 記錄已抽過
+    
     addStructuredLog(LogType.reward, "題目： ${randomEvent.question}", data: {"isQuestion": true});
 
     currentEvent.question = randomEvent.question;
@@ -580,24 +609,55 @@ class GameController extends ChangeNotifier{
 
   // ===== 下一個事件 (保持不變) =====
     void nextEvent({int optionIndex = 0}) {
-      // 如果是支援事件，結束後直接清空支援事件，不回到前一個事件
+      // 判斷是否為支援事件結束
       if (inSupportEvent) {
         inSupportEvent = false;
         nextSupportEvent = null;
+
+        final current = events[currentEventIndex]; // 支援事件前的事件（可能已死怪物）
+        int useIndex = selectedOptionIndex ?? 0;
+
+        // 只有當前事件是已擊敗的怪物事件時，才進行強行推進
+        if (current.type == "monster" && currentMonster != null && currentMonster!.isDead) {
+          // 推進主線
+          if (current.nextEventIds != null && current.nextEventIds!.isNotEmpty) {
+            final nextId = current.nextEventIds!.length > useIndex
+                ? current.nextEventIds![useIndex]
+                : current.nextEventIds!.first;
+
+            if (eventIdToIndex.containsKey(nextId)) {
+              currentEventIndex = eventIdToIndex[nextId]!;
+            } else {
+              currentEventIndex++;
+            }
+          } else if (currentEventIndex < events.length - 1) {
+            currentEventIndex++;
+          } else {
+            addStructuredLog(LogType.system, "無下一事件或章節結束");
+          }
+        }
+
+        selectedOptionIndex = null;
+
+        // 檢查是否觸發新的支援事件（會自動檢查 supportChainCount < 3）
         maybeInsertSupportEvent();
         if (nextSupportEvent != null) {
-          return;
+          notifyListeners();
+          return; // 再次進入特殊事件
         }
-        supportChainCount = 0;
-        final current = events[currentEventIndex]; // 支援事件結束後，回到原來的事件
-        if (current.text != null && current.text!.isNotEmpty) {
-          addStructuredLog(LogType.story, current.text!);
+
+        // 顯示推進後的新事件，初始化怪物事件
+        final next = events[currentEventIndex];
+        if (next.text != null && next.text!.isNotEmpty) {
+          addStructuredLog(LogType.story, next.text!);
         }
-        if (current.type == "monster" && currentMonster != null && !currentMonster!.isDead) {    
+        if (next.type == "monster" && currentMonster != null && !currentMonster!.isDead) {
           currentMonster!.turnCounter = currentMonster!.turns;
           playerTurn = true;
           assignRandomQuestionToMonster();
         }
+
+        notifyListeners();
         return;
       }
 
@@ -617,23 +677,35 @@ class GameController extends ChangeNotifier{
 
         if (eventIdToIndex.containsKey(nextId)) {
           currentEventIndex = eventIdToIndex[nextId]!;
-          final next = currentEvent;
-          if (next.text != null && next.text!.isNotEmpty) {
-            addStructuredLog(LogType.story, next.text!);
-          }
+        } else {
+          currentEventIndex++;
+        }
 
-          // 怪物事件初始化，若怪物已死就跳過
-          if (next.type == "monster" && currentMonster != null && !currentMonster!.isDead) {
-            currentMonster!.turnCounter = currentMonster!.turns;
-            playerTurn = true;
-            assignRandomQuestionToMonster();
-      
-          }
+        final next = currentEvent;
+        if (next.text != null && next.text!.isNotEmpty) {
+          addStructuredLog(LogType.story, next.text!);
+        }
+        if (next.type == "monster" && currentMonster != null && !currentMonster!.isDead) {
+          currentMonster!.turnCounter = currentMonster!.turns;
+          playerTurn = true;
+          assignRandomQuestionToMonster();
         }
       } else if (currentEventIndex < events.length - 1) {
         currentEventIndex++;
+        final next = currentEvent;
+        if (next.text != null && next.text!.isNotEmpty) {
+          addStructuredLog(LogType.story, next.text!);
+        }
+        if (next.type == "monster" && currentMonster != null && !currentMonster!.isDead) {
+          currentMonster!.turnCounter = currentMonster!.turns;
+          playerTurn = true;
+          assignRandomQuestionToMonster();
+        }
       } else {
         addStructuredLog(LogType.system, "無下一事件或章節結束");
       }
+
+      notifyListeners();
     }
+
 }

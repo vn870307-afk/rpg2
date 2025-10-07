@@ -42,7 +42,7 @@ class _AttributeAllocationScreenState extends State<AttributeAllocationScreen> {
   Map<String, num> calculateBattlePreview() {
     return {
       '血量上限': widget.player.maxhp +
-          ((tempPoints['STR']! * 1.5).round() + tempPoints['VIT']! * 2),
+          ((tempPoints['STR']! * 3).round() + tempPoints['VIT']! * 6),
       '攻擊': widget.player.atk + tempPoints['STR']! * 2 + tempPoints['INT']! * 1.5,
       '防禦': widget.player.def + tempPoints['VIT']! * 1.5,
       '迴避率': widget.player.agi + tempPoints['CHA']! * 1.2 + tempPoints['LUK']! * 1.2,

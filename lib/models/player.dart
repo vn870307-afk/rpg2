@@ -56,14 +56,14 @@ class Player {
   }
 
   // ===== 動態戰鬥能力值 (getter, 自動吃 Debuff) =====
-  int get maxhp => 100 + (getEffective("str") * 1.5).round() + getEffective("vit") * 2;
+  int get maxhp => 100 + (getEffective("str") * 3).round() + getEffective("vit") * 6;
   num get atk => 40 + getEffective("str") * 2 + getEffective("intt") * 1.5;
   num get def => getEffective("vit") * 1.5;
   num get agi => 10 + getEffective("cha") * 1.2 + getEffective("luk") * 1.2;
   num get ct  => 10 + getEffective("luk") * 2 + getEffective("dex") * 1.5;
   num get spd => 10 + getEffective("dex") * 1.5;
   num get ins => 30 + getEffective("intt") * 2;
-  num get SupportEvent => 20 + getEffective("cha") * 2;
+  num get SupportEvent => 100 + getEffective("cha") * 2;
   int get SAN => sanBase +
       (getEffective("vit") * 0.2).round() +
       (getEffective("intt") * 0.2).round() +
