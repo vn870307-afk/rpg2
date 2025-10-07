@@ -63,7 +63,7 @@ class Player {
   num get ct  => 10 + getEffective("luk") * 2 + getEffective("dex") * 1.5;
   num get spd => 10 + getEffective("dex") * 1.5;
   num get ins => 30 + getEffective("intt") * 2;
-  num get SupportEvent => 100 + getEffective("cha") * 2;
+  num get SupportEvent => 20 + getEffective("cha") * 2;
   int get SAN => sanBase +
       (getEffective("vit") * 0.2).round() +
       (getEffective("intt") * 0.2).round() +
