@@ -73,13 +73,28 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   void _setOnDeath() {
     widget.game.player.onDeath = () {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        final stats = widget.game.stats.toMap();
+
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) {
             return AlertDialog(
               title: const Text("💀 遊戲結束"),
-              content: const Text("你的 HP 歸零了！"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("你的 HP 歸零了！\n\n📊 統計結果：", style: TextStyle(fontSize: 16)),
+                  const SizedBox(height: 8),
+                  for (final e in stats.entries)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text("${e.key}: ${e.value}",
+                          style: const TextStyle(fontSize: 15)),
+                    ),
+                ],
+              ),
               actions: [
                 ElevatedButton(
                   onPressed: () {
@@ -103,6 +118,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
       });
     };
   }
+
 
   Widget _buildLogEntry(BattleLogEntry entry) {
     final color = entry.getColor();

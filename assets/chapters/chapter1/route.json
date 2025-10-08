@@ -1,0 +1,276 @@
+{
+  "events": [
+    {
+      "id": "e1",
+      "type": "story",
+      "text": "夜晚降臨，社區響起神秘鈴聲，你必須立即尋找避難所！",
+      "nextEventIds": ["m1_intro"]
+    },
+    {
+      "id": "m1_intro",
+      "type": "story",
+      "text": "街道上陰影晃動，一個幽影巡者出現在你眼前，高大、半透明，戴著紳士帽，緊盯著你！",
+      "nextEventIds": ["m1"]
+    },
+    {
+      "id": "m1",
+      "type": "monster",
+      "monsterId": "m1",
+      "nextEventIds": ["m1_end"]
+    },
+    {
+      "id": "m1_end",
+      "type": "story",
+      "text": "幽影巡者被擊退，街道暫時安靜，但遠處仍有陰影移動……",
+      "nextEventIds": ["branch1"]
+    },
+    {
+      "id": "branch1",
+      "type": "story",
+      "text": "你來到街道分岔口，發現左路覆滿黑影陷阱，右路覆蓋迷霧，你要選哪條路？",
+      "options": ["黑影陷阱路", "迷霧路"],
+      "nextEventIds": ["m2_l_intro", "m2_r_intro"]
+    },
+    {
+      "id": "m2_l_intro",
+      "type": "story",
+      "text": "左路的黑影尖刺突然蠢蠢欲動，似乎在監視你的每一步。",
+      "nextEventIds": ["m2_l"],
+      "flagsSet": ["observedClues"]
+    },
+    {
+      "id": "m2_l",
+      "type": "monster",
+      "monsterId": "m2",
+      "nextEventIds": ["m2_l_end"]
+    },
+    {
+      "id": "m2_l_end",
+      "type": "story",
+      "text": "黑影尖刺消散，但街道依舊陰暗，讓人不寒而慄。",
+      "nextEventIds": ["m3_intro"]
+    },
+    {
+      "id": "m2_r_intro",
+      "type": "story",
+      "text": "右路迷霧之中，暗影凝視者靜止不動，眼神讓你心驚膽顫。",
+      "nextEventIds": ["m2_r"],
+      "flagsSet": ["observedClues"]
+    },
+    {
+      "id": "m2_r",
+      "type": "monster",
+      "monsterId": "m3",
+      "nextEventIds": ["m2_r_end"]
+    },
+    {
+      "id": "m2_r_end",
+      "type": "story",
+      "text": "暗影凝視者被擊退，但迷霧中似乎藏著更多危機。",
+      "nextEventIds": ["m3_intro"]
+    },
+    {
+      "id": "m3_intro",
+      "type": "story",
+      "text": "階梯縫隙間爬出階梯爬行者，準備襲擊你！",
+      "nextEventIds": ["m3"]
+    },
+    {
+      "id": "m3",
+      "type": "monster",
+      "monsterId": "m4",
+      "nextEventIds": ["m3_end"]
+    },
+    {
+      "id": "m3_end",
+      "type": "story",
+      "text": "階梯爬行者被擊退，你發現通往迷宮的秘密入口。",
+      "nextEventIds": ["branch2"]
+    },
+    {
+      "id": "branch2",
+      "type": "story",
+      "text": "迷宮入口出現三道門：左門刻有火焰符號，中門有水波紋路，右門籠罩黑霧。你要選哪扇門？",
+      "options": ["火門", "水門", "黑霧門"],
+      "nextEventIds": ["m5_intro", "m6_intro", "m5_intro_trap"]
+    },
+    {
+      "id": "m5_intro",
+      "type": "story",
+      "text": "火門後的房間守衛出現，它沿固定路線巡邏，冷冷盯著你。",
+      "nextEventIds": ["m5"]
+    },
+    {
+      "id": "m5",
+      "type": "monster",
+      "monsterId": "m5",
+      "nextEventIds": ["m5_end"]
+    },
+    {
+      "id": "m5_end",
+      "type": "story",
+      "text": "房間守衛被擊退，但迷宮深處的鈴聲讓你心跳加速。",
+      "nextEventIds": ["m7_intro"]
+    },
+    {
+      "id": "m6_intro",
+      "type": "story",
+      "text": "水門後的黑霧飄浮者浮現，擾亂你的視線，使迷宮更加危險。",
+      "nextEventIds": ["m6"]
+    },
+    {
+      "id": "m6",
+      "type": "monster",
+      "monsterId": "m6",
+      "nextEventIds": ["m6_end"]
+    },
+    {
+      "id": "m6_end",
+      "type": "story",
+      "text": "黑霧飄浮者消散，迷宮深處仍充滿未知。",
+      "nextEventIds": ["m7_intro"]
+    },
+    {
+      "id": "m5_intro_trap",
+      "type": "story",
+      "text": "黑霧門觸發陷阱，房間守衛出現，但攻擊力更強！",
+      "nextEventIds": ["m5_trap"]
+    },
+    {
+      "id": "m5_trap",
+      "type": "monster",
+      "monsterId": "m5",
+      "nextEventIds": ["m5_end"]
+    },
+    {
+      "id": "m7_intro",
+      "type": "story",
+      "text": "幻象鏡像出現，它複製你的影像，迷惑你的方向！",
+      "nextEventIds": ["m7"]
+    },
+    {
+      "id": "m7",
+      "type": "monster",
+      "monsterId": "m7",
+      "nextEventIds": ["m7_end"]
+    },
+    {
+      "id": "m7_end",
+      "type": "story",
+      "text": "幻象鏡像消失，迷宮出口似乎就在前方。",
+      "nextEventIds": ["branch3"]
+    },
+    {
+      "id": "branch3",
+      "type": "story",
+      "text": "迷宮深處傳來鈴聲，你必須選擇正確通道對抗魔王，或冒險進入未知房間？",
+      "options": ["正路挑戰魔王", "未知房間冒險"],
+      "nextEventIds": ["boss1_intro", "boss2_intro_trap"]
+    },
+    {
+      "id": "boss1_intro",
+      "type": "story",
+      "text": "深影領主現身，它掌控黑影，威壓四周，帶著無比的恐懼感！",
+      "nextEventIds": ["boss1"]
+    },
+    {
+      "id": "boss1",
+      "type": "monster",
+      "monsterId": "boss1",
+      "nextEventIds": ["boss1_end"]
+    },
+    {
+      "id": "boss1_end",
+      "type": "story",
+      "text": "深影領主被擊退，迷宮的黑暗暫時緩和，但鈴聲仍迴盪。",
+      "nextEventIds": ["final_branch"]
+    },
+    {
+      "id": "boss2_intro_trap",
+      "type": "story",
+      "text": "未知房間中迷霧紳士現身，幻象迷宮開始扭曲你的方向！",
+      "nextEventIds": ["boss2"]
+    },
+    {
+      "id": "boss2",
+      "type": "monster",
+      "monsterId": "boss2",
+      "nextEventIds": ["boss2_end"]
+    },
+    {
+      "id": "boss2_end",
+      "type": "story",
+      "text": "迷霧紳士被擊退，但迷宮仍然陰暗，鈴聲更加響亮。",
+      "nextEventIds": ["final_branch"]
+    },
+    {
+      "id": "final_branch",
+      "type": "story",
+      "text": "終於面對鈴聲之主，你必須選擇勇敢對抗或使用禁忌物品封印？",
+      "options": ["勇敢對抗", "使用禁忌物品"],
+      "nextEventIds": ["finalBoss_intro"]
+    },
+    {
+      "id": "finalBoss_intro",
+      "type": "story",
+      "text": "鈴聲之主現身，全身半透明黑影融合所有怪物能力，幻象迷宮瞬間改變！",
+      "nextEventIds": ["finalBoss"]
+    },
+    {
+      "id": "finalBoss",
+      "type": "monster",
+      "monsterId": "finalBoss",
+      "nextEventIds": ["finalBoss_end"]
+    },
+    {
+      "id": "finalBoss_end",
+      "type": "story",
+      "text": "鈴聲之主被擊退，判斷最終結局...",
+      "nextEventIds": [
+        {"condition": "player.hasFlag('observedClues') && player.hasFlag('understandsShadowTruth')", "next": "ending1"},
+        {"condition": "player.hasFlag('observedClues') == false", "next": "badEnding1_intro"},
+        {"condition": "player.hasFlag('observedClues') && player.hasFlag('understandsShadowTruth') == false", "next": "ending2"}
+      ]
+    },
+    {
+      "id": "badEnding1_intro",
+      "type": "story",
+      "text": "你在迷宮深處迷路，黑影越來越多，恐懼感逐漸吞噬你。",
+      "nextEventIds": ["badEnding1_escape"]
+    },
+    {
+      "id": "badEnding1_escape",
+      "type": "story",
+      "text": "你艱難地逃出迷宮，但社區已經陷入混亂，人們恐懼不安，你只能孤身離開。",
+      "nextEventIds": ["badEnding1_end"],
+      "flagsSet": ["reachedBadEnding1"]
+    },
+    {
+      "id": "badEnding1_end",
+      "type": "story",
+      "text": "結局：迷宮深淵路線。象徵意義：害怕、逃避、孤獨。你學會逃避帶來的後果，但缺乏解決問題的能力。"
+    },
+    {
+      "id": "ending1",
+      "type": "story",
+      "text": "你成功封印鈴聲之主，社區恢復和平。結局：正義路線。"
+    },
+    {
+      "id": "ending2",
+      "type": "story",
+      "text": "你犧牲自己暫時封印魔王，社區仍潛藏危機。結局：犧牲路線。"
+    }
+  ],
+  "monsters": [
+    {"id":"m1","name":"幽影巡者","hp":120,"atk":[20,30],"turns":3,"reward":{"exp":[50,70],"hp":[20,30]}},
+    {"id":"m2","name":"黑影尖刺","hp":150,"atk":[24,36],"turns":2,"reward":{"exp":[70,90],"hp":[35,40]}},
+    {"id":"m3","name":"暗影凝視者","hp":180,"atk":[30,40],"turns":2,"reward":{"exp":[80,120],"hp":[20,30]}},
+    {"id":"m4","name":"階梯爬行者","hp":200,"atk":[36,50],"turns":3,"reward":{"exp":[120,150],"hp":[30,45]}},
+    {"id":"m5","name":"房間守衛","hp":220,"atk":[40,56],"turns":3,"reward":{"exp":[150,180],"hp":[24,36]}},
+    {"id":"m6","name":"黑霧飄浮者","hp":250,"atk":[30,44],"turns":2,"reward":{"exp":[180,200],"hp":[30,50]}},
+    {"id":"m7","name":"幻象鏡像","hp":280,"atk":[50,60],"turns":3,"reward":{"exp":[200,240],"hp":[25,30]}},
+    {"id":"boss1","name":"深影領主","hp":400,"atk":[50,60],"turns":3,"reward":{"exp":[300,400],"hp":[40,60]}},
+    {"id":"boss2","name":"迷霧紳士","hp":420,"atk":[30,75],"turns":4,"reward":{"exp":[360,440],"hp":[50,70]}},
+    {"id":"finalBoss","name":"鈴聲之主","hp":800,"atk":[50,90],"turns":5,"reward":{"exp":[400,500],"hp":[50,80]}}
+  ]
+}

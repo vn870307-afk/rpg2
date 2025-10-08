@@ -10,6 +10,7 @@ import 'package:rpg/models/ziwei_player_answer.dart';
 import 'package:rpg/models/checkSanEffect.dart';
 import 'package:flutter/foundation.dart'; // 引入 compute 函式
 import 'package:rpg/models/battle_log_entry.dart';
+import 'package:rpg/models/game_stats.dart';
 
 // ===== Monster Model (保持不變) =====
 class Monster {
@@ -92,6 +93,7 @@ List<Monster> _parseMonsters(String jsonString) {
 class GameController extends ChangeNotifier{
   Player player;
   late SanEffectChecker sanChecker;
+  GameStats stats = GameStats();
   Set<String> usedQuestionIds = {}; // 追蹤已抽題目
   // ===== 事件相關 =====
   List<StoryEvent> events = [];
@@ -250,11 +252,6 @@ class GameController extends ChangeNotifier{
     final monster = currentMonster;
     bool correct = false;
 
-    if (event == null) {
-      notifyListeners(); 
-      return false;
-    }
-
     // 🔹 SAN 影響
     final sanResult = sanChecker.checkSanEffect(player);
     if (sanResult != null) {
@@ -285,6 +282,7 @@ class GameController extends ChangeNotifier{
         if (userAnswer is ZiWeiPlayerAnswer) {
           final answers = userAnswer.filledValues;
           final keys = event.answerKeys ?? [];
+          stats.totalQuestions++;
 
           double accuracy = 0.0; // 答對比例
           if (answers.length == keys.length) {
@@ -307,6 +305,7 @@ class GameController extends ChangeNotifier{
 
           if (correct) {
             addStructuredLog(LogType.correctAnswer, "正確答案： $displayTemplate");
+            stats.correctAnswers++;
           } else {
             addStructuredLog(LogType.correctAnswer, "正確答案： $displayTemplate");
             addStructuredLog(LogType.incorrectAnswer, "玩家答案： $answers");
@@ -328,6 +327,7 @@ class GameController extends ChangeNotifier{
 
       case 'multiple_choice':
         if (userAnswer is int) {
+          stats.totalQuestions++;
           if (event.options == null || event.options!.isEmpty || userAnswer >= event.options!.length) {
             correct = false;
           } else {
@@ -337,6 +337,7 @@ class GameController extends ChangeNotifier{
 
             if (correct) {
               addStructuredLog(LogType.correctAnswer, "正確答案：$answerStr");
+              stats.correctAnswers++;
             } else {
               addStructuredLog(LogType.correctAnswer, "正確答案：$answerStr");
               addStructuredLog(LogType.incorrectAnswer, "玩家答案：$selectedOption");
@@ -354,6 +355,7 @@ class GameController extends ChangeNotifier{
         playerAttack();
       } else {
         monster.turnCounter--;
+        stats.totalTurns++;
         addStructuredLog(LogType.info, "答錯了！${monster.name} 的回合倒數 -1，剩餘回合: ${monster.turnCounter}");
 
         if (monster.turnCounter <= 0) {
@@ -387,6 +389,10 @@ class GameController extends ChangeNotifier{
       monster.turnCounter += 1; 
     }
     monster.takeDamage(damage);
+    stats.totalDamage += damage;
+    if (damage > stats.highestDamage) {
+      stats.highestDamage = damage;
+    }
      // 戰鬥日誌
     addStructuredLog(
       LogType.playerAttack,
@@ -395,6 +401,7 @@ class GameController extends ChangeNotifier{
 
     if (monster.isDead) {
       addStructuredLog(LogType.system, "${monster.name} 被擊敗！");
+      stats.monstersKilled++;
       player.tempDebuff.clear();
       player.debuffDuration.clear();
       applyMonsterReward(monster.reward);
@@ -436,6 +443,7 @@ class GameController extends ChangeNotifier{
     int damage = currentMonster!.atk;
     int damageTaken = (damage * (100 / (100 + player.def))).round(); 
     applyReward({"hp": -damageTaken}, isPenalty: true);
+    stats.totalDamageTaken += damageTaken;
     if (player.hp < 0) player.hp = 0;
     addStructuredLog(
       LogType.damageTaken, 
