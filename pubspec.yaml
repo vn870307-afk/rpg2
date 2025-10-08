@@ -58,11 +58,11 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/chapters/chapter1/index.json
-    - assets/chapters/chapter1/supportEvents.json
-    - assets/chapters/chapter1/route.json
-    - assets/chapters/chapter1/multiple_choice_question.json
-    - assets/chapters/chapter1/Flying_Star.json
+    - assets/assets/chapters/chapter1/index.json
+    - assets/assets/chapters/chapter1/supportEvents.json
+    - assets/assets/chapters/chapter1/route.json
+    - assets/assets/chapters/chapter1/multiple_choice_question.json
+    - assets/assets/chapters/chapter1/Flying_Star.json
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

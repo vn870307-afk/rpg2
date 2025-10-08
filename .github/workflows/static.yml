@@ -1,0 +1,51 @@
+name: Flutter Web Deploy
+
+on:
+  push:
+    # 修正分支名稱為 master
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write 
+  pages: write
+  id-token: write
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 1. 設置 Flutter 環境 (新增)
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # ⚠️ 替換為您專案使用的正確版本號，例如 '3.19.0'
+          flutter-version: '3.35.1' 
+
+      # 2. 獲取依賴 (新增)
+      - name: Install Dependencies
+        run: flutter pub get
+
+      # 3. 執行 Flutter Web 編譯 (新增)
+      - name: Build Web App
+        run: flutter build web --release
+
+      # 4. 配置 GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 5. 上傳 Artifact (只上傳編譯後的內容)
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # ✅ 修正點: 確保只部署 build/web 內容
+          path: 'build/web' 
+
+      # 6. 部署到 GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
